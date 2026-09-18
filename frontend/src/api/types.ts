@@ -32,3 +32,13 @@ export interface ApiErrorBody {
   code: string;
   message: string;
 }
+
+/** Mirrors the API's SessionResponse (BW-12). */
+export interface SessionResponse {
+  user: AuthenticatedUser;
+}
+
+/** Mirrors the API's ApiMessage. */
+export interface ApiMessageBody {
+  message: string;
+}

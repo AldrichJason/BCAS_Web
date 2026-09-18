@@ -42,6 +42,7 @@ Backend code is organised by **feature**, not by layer: everything for a feature
 sqlcmd -S localhost -U sa -P "<password>" -Q "IF DB_ID('BcasWeb') IS NULL CREATE DATABASE BcasWeb;"
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/001_schema.sql
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/002_seed.sql
+sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/003_sessions_and_password_resets.sql
 ```
 
 See [`database/README.md`](database/README.md) for the schema layout and the
@@ -103,9 +104,16 @@ A branch is merged only after the build passes and one teammate has reviewed it.
 
 ## Authentication
 
-`POST /api/auth/login` takes an email and password and returns a signed JWT plus
-the user's basic profile. Token claims carry the user id (`sub`), the role code
-(`role`) and one `dept` claim per department the user is scoped to.
+| Endpoint | Auth | Purpose |
+| --- | --- | --- |
+| `POST /api/auth/login` | anonymous | Returns a signed JWT plus the user's basic profile. |
+| `GET /api/auth/session` | bearer | Re-reads the signed-in user so the client can route on load. |
+| `POST /api/auth/logout` | bearer | Revokes the caller's token. Idempotent. |
+| `POST /api/auth/forgot-password` | anonymous | Emails a reset link when the account exists. |
+| `POST /api/auth/reset-password` | anonymous | Completes a reset using the token from the link. |
+
+Token claims carry the user id (`sub`), the role code (`role`) and one `dept`
+claim per department the user is scoped to.
 
 | Role code | Role | Landing route |
 | --- | --- | --- |
@@ -118,3 +126,29 @@ Unknown emails, wrong passwords and deactivated accounts all return the same
 `401` with a generic message, so the endpoint cannot be used to discover which
 accounts exist. Repeated failures lock an account for a configurable window
 (`Login:MaxFailedAttempts`, `Login:LockoutMinutes`).
+
+### Sign-out
+
+Access tokens are stateless, so signing out records the token's `jti` in
+`auth.RevokedTokens` and the API rejects it for the rest of its lifetime. The
+client also clears its stored session and navigates with `replace`, so the
+browser's Back button cannot return to an admin screen; API responses are sent
+`no-store` so nothing admin-related is served from cache.
+
+### Password reset
+
+`POST /api/auth/forgot-password` answers with the same message whether or not the
+email is registered. When it is, a single-use link valid for
+`PasswordReset:TokenLifetimeMinutes` is emailed; only the token's SHA-256 hash is
+stored. Requesting a new link, or completing a reset, retires every outstanding
+token for that account.
+
+Without SMTP configured (`Email:Enabled` is `false` by default) the reset email
+is written to the application log instead of being sent, so the link can be
+copied from the console during development. To send real mail, set
+`Email:Enabled`, `Email:SmtpHost` and the credentials — the password belongs in
+user secrets or the deployment secret store, not `appsettings.json`.
+
+Password policy is defined once in `Features/Auth/PasswordPolicy.cs` and mirrored
+in `frontend/src/features/auth/passwordPolicy.ts` for inline feedback; the
+server's copy is the one that decides.

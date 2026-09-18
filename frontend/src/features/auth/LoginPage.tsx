@@ -1,15 +1,22 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { useAuth } from './useAuth';
 import { dashboardRouteForRole } from './roles';
 import { hasErrors, validateLogin, type LoginFieldErrors } from './validation';
-import './LoginPage.css';
+import './AuthForms.css';
+
+/** Passed by ProtectedRoute (where to return to) and by the reset flow (a notice). */
+interface LoginLocationState {
+  from?: string;
+  notice?: string;
+}
 
 export function LoginPage() {
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const state = location.state as LoginLocationState | null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,8 +63,7 @@ export function LoginPage() {
     try {
       const signedIn = await signIn(email.trim(), password, controller.signal);
       // Return the user to wherever they were headed before being bounced here.
-      const from = (location.state as { from?: string } | null)?.from;
-      navigate(from ?? dashboardRouteForRole(signedIn.roleCode), { replace: true });
+      navigate(state?.from ?? dashboardRouteForRole(signedIn.roleCode), { replace: true });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
@@ -75,20 +81,26 @@ export function LoginPage() {
   const passwordError = touched.password ? fieldErrors.password : undefined;
 
   return (
-    <main className="login-page">
-      <form className="login-card" onSubmit={handleSubmit} noValidate>
-        <header className="login-header">
+    <main className="auth-page">
+      <form className="auth-card" onSubmit={handleSubmit} noValidate>
+        <header className="auth-header">
           <h1>BCAS Portal</h1>
           <p>Sign in to manage your department&rsquo;s content.</p>
         </header>
 
+        {state?.notice && !formError && (
+          <p className="auth-success" role="status">
+            {state.notice}
+          </p>
+        )}
+
         {formError && (
-          <p className="login-error" role="alert">
+          <p className="auth-error" role="alert">
             {formError}
           </p>
         )}
 
-        <div className="login-field">
+        <div className="auth-field">
           <label htmlFor="email">Email</label>
           <input
             id="email"
@@ -110,7 +122,7 @@ export function LoginPage() {
           )}
         </div>
 
-        <div className="login-field">
+        <div className="auth-field">
           <label htmlFor="password">Password</label>
           <input
             id="password"
@@ -131,9 +143,13 @@ export function LoginPage() {
           )}
         </div>
 
-        <button className="login-submit" type="submit" disabled={isSubmitting}>
+        <button className="auth-submit" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <Link className="auth-link" to="/forgot-password">
+          Forgot your password?
+        </Link>
       </form>
     </main>
   );

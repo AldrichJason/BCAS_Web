@@ -1,10 +1,14 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using BCAS.Api.Common.Db;
 using BCAS.Api.Features.ActivityLog;
 using BCAS.Api.Features.Auth;
+using BCAS.Api.Features.Email;
 using BCAS.Api.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +16,9 @@ var builder = WebApplication.CreateBuilder(args);
 // --- Configuration -----------------------------------------------------------
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<LoginOptions>(builder.Configuration.GetSection(LoginOptions.SectionName));
+builder.Services.Configure<AppOptions>(builder.Configuration.GetSection(AppOptions.SectionName));
+builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection(PasswordResetOptions.SectionName));
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("The 'Jwt' configuration section is missing.");
@@ -24,6 +31,7 @@ if (string.IsNullOrWhiteSpace(jwt.SigningKey))
 }
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+var emailEnabled = builder.Configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>()?.Enabled ?? false;
 
 // --- Services ----------------------------------------------------------------
 builder.Services.AddControllers();
@@ -35,12 +43,29 @@ builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+builder.Services.AddScoped<ITokenRevocationStore, TokenRevocationStore>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Without SMTP configured, reset emails go to the application log so the link
+// can still be followed during development.
+if (emailEnabled)
+{
+    builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+}
+else
+{
+    builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Keep the JWT's own claim names ("sub", "role", "jti") instead of the
+        // legacy SOAP URIs, so what the token carries is what the code reads.
+        options.MapInboundClaims = false;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -51,6 +76,30 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = JwtRegisteredClaimNames.Sub,
+            RoleClaimType = "role",
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            // BW-11: a token that has been logged out is rejected for the rest
+            // of its lifetime, so signing out ends the session server-side too.
+            OnTokenValidated = async context =>
+            {
+                var jti = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
+
+                if (string.IsNullOrEmpty(jti))
+                {
+                    context.Fail("Token is missing its jti claim.");
+                    return;
+                }
+
+                var revoked = context.HttpContext.RequestServices.GetRequiredService<ITokenRevocationStore>();
+                if (await revoked.IsRevokedAsync(jti, context.HttpContext.RequestAborted).ConfigureAwait(false))
+                {
+                    context.Fail("Token has been revoked.");
+                }
+            },
         };
     });
 
@@ -104,6 +153,20 @@ else
 
 app.UseHttpsRedirection();
 app.UseCors();
+
+// BW-11: keep API responses out of the browser's back/forward cache, so pressing
+// Back after signing out cannot redisplay admin data from a cached response.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Headers[HeaderNames.CacheControl] = "no-store, no-cache, must-revalidate";
+        context.Response.Headers[HeaderNames.Pragma] = "no-cache";
+    }
+
+    await next(context).ConfigureAwait(false);
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 

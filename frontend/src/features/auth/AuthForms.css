@@ -1,4 +1,5 @@
-.login-page {
+/* Shared layout for the signed-out auth screens (login, forgot, reset). */
+.auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -7,7 +8,7 @@
   background: var(--bcas-surface-muted);
 }
 
-.login-card {
+.auth-card {
   width: 100%;
   max-width: 400px;
   display: flex;
@@ -19,63 +20,73 @@
   box-shadow: 0 10px 30px rgb(15 23 42 / 8%);
 }
 
-.login-header h1 {
+.auth-header h1 {
   margin: 0 0 4px;
   font-size: 1.5rem;
 }
 
-.login-header p {
+.auth-header p {
   margin: 0;
   color: var(--bcas-text-muted);
   font-size: 0.9rem;
 }
 
-.login-field {
+.auth-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.login-field label {
+.auth-field label {
   font-size: 0.875rem;
   font-weight: 600;
 }
 
-.login-field input {
+.auth-field input {
   padding: 10px 12px;
   border: 1px solid var(--bcas-border);
   border-radius: 8px;
-  font-size: 1rem;
   font: inherit;
 }
 
-.login-field input:focus-visible {
+.auth-field input:focus-visible {
   outline: 2px solid var(--bcas-accent);
   outline-offset: 1px;
 }
 
-.login-field input[aria-invalid='true'] {
+.auth-field input[aria-invalid='true'] {
   border-color: var(--bcas-danger);
 }
 
-.login-field input:disabled {
+.auth-field input:disabled {
   background: var(--bcas-surface-muted);
 }
 
-.field-error,
-.login-error {
-  color: var(--bcas-danger);
-  font-size: 0.8125rem;
-}
-
-.login-error {
+.auth-error,
+.auth-success {
   margin: 0;
   padding: 10px 12px;
   border-radius: 8px;
-  background: var(--bcas-danger-surface);
+  font-size: 0.875rem;
 }
 
-.login-submit {
+.auth-error {
+  background: var(--bcas-danger-surface);
+  color: var(--bcas-danger);
+}
+
+.auth-success {
+  background: var(--bcas-success-surface);
+  color: var(--bcas-success);
+}
+
+.auth-hint {
+  margin: 0;
+  color: var(--bcas-text-muted);
+  font-size: 0.8125rem;
+}
+
+.auth-submit {
   padding: 11px 16px;
   border: 0;
   border-radius: 8px;
@@ -86,11 +97,27 @@
   cursor: pointer;
 }
 
-.login-submit:hover:not(:disabled) {
+.auth-submit:hover:not(:disabled) {
   background: var(--bcas-accent-strong);
 }
 
-.login-submit:disabled {
+.auth-submit:disabled {
   cursor: progress;
   opacity: 0.7;
+}
+
+.auth-submit-link {
+  text-align: center;
+  text-decoration: none;
+}
+
+.auth-link {
+  align-self: center;
+  color: var(--bcas-accent);
+  font-size: 0.875rem;
+}
+
+.field-error {
+  color: var(--bcas-danger);
+  font-size: 0.8125rem;
 }

@@ -6,6 +6,14 @@ public interface IUserRepository
 
     Task<IReadOnlyList<DepartmentScope>> GetDepartmentScopeAsync(int userId, CancellationToken cancellationToken = default);
 
+    Task<UserCredentialRecord?> FindByIdAsync(int userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces the stored hash, clears MustChangePassword and releases any
+    /// lockout, so a reset also unblocks an account locked by failed attempts.
+    /// </summary>
+    Task UpdatePasswordAsync(int userId, string passwordHash, CancellationToken cancellationToken = default);
+
     Task RecordSuccessfulLoginAsync(int userId, CancellationToken cancellationToken = default);
 
     /// <summary>
