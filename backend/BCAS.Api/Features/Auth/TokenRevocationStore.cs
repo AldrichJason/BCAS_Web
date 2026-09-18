@@ -25,12 +25,27 @@ public sealed class TokenRevocationStore : ITokenRevocationStore
         await connection.ExecuteAsync(command).ConfigureAwait(false);
     }
 
-    public async Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default)
+    public async Task<AccessTokenStatus> GetStatusAsync(
+        string jti, int userId, CancellationToken cancellationToken = default)
     {
-        const string sql = "SELECT CAST(CASE WHEN EXISTS (SELECT 1 FROM auth.RevokedTokens WHERE Jti = @Jti) THEN 1 ELSE 0 END AS BIT);";
+        // 0 = accepted, 1 = revoked, 2 = account inactive or missing.
+        const string sql = """
+            SELECT CASE
+                       WHEN EXISTS (SELECT 1 FROM auth.RevokedTokens WHERE Jti = @Jti) THEN 1
+                       WHEN NOT EXISTS (SELECT 1 FROM auth.Users WHERE UserId = @UserId AND IsActive = 1) THEN 2
+                       ELSE 0
+                   END;
+            """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        var command = new CommandDefinition(sql, new { Jti = jti }, cancellationToken: cancellationToken);
-        return await connection.ExecuteScalarAsync<bool>(command).ConfigureAwait(false);
+        var command = new CommandDefinition(sql, new { Jti = jti, UserId = userId }, cancellationToken: cancellationToken);
+        var code = await connection.ExecuteScalarAsync<int>(command).ConfigureAwait(false);
+
+        return code switch
+        {
+            1 => AccessTokenStatus.Revoked,
+            2 => AccessTokenStatus.AccountInactive,
+            _ => AccessTokenStatus.Accepted,
+        };
     }
 }

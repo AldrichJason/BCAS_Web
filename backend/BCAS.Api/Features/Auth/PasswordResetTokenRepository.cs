@@ -11,7 +11,12 @@ public sealed class PasswordResetTokenRepository : IPasswordResetTokenRepository
         _connectionFactory = connectionFactory;
 
     public async Task CreateAsync(
-        int userId, string tokenHash, DateTime expiresAtUtc, string? requestedIp, CancellationToken cancellationToken = default)
+        int userId,
+        string tokenHash,
+        DateTime expiresAtUtc,
+        string? requestedIp,
+        PasswordTokenPurpose purpose,
+        CancellationToken cancellationToken = default)
     {
         // Requesting a new link retires the previous ones straight away.
         const string sql = """
@@ -23,8 +28,8 @@ public sealed class PasswordResetTokenRepository : IPasswordResetTokenRepository
                     AND ConsumedAt IS NULL
                     AND InvalidatedAt IS NULL;
 
-            INSERT INTO auth.PasswordResetTokens (UserId, TokenHash, ExpiresAt, RequestedIp)
-            VALUES (@UserId, @TokenHash, @ExpiresAt, @RequestedIp);
+            INSERT INTO auth.PasswordResetTokens (UserId, TokenHash, ExpiresAt, RequestedIp, Purpose)
+            VALUES (@UserId, @TokenHash, @ExpiresAt, @RequestedIp, @Purpose);
 
             COMMIT TRANSACTION;
             """;
@@ -32,7 +37,14 @@ public sealed class PasswordResetTokenRepository : IPasswordResetTokenRepository
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         var command = new CommandDefinition(
             sql,
-            new { UserId = userId, TokenHash = tokenHash, ExpiresAt = expiresAtUtc, RequestedIp = requestedIp },
+            new
+            {
+                UserId = userId,
+                TokenHash = tokenHash,
+                ExpiresAt = expiresAtUtc,
+                RequestedIp = requestedIp,
+                Purpose = purpose.ToString(),
+            },
             cancellationToken: cancellationToken);
         await connection.ExecuteAsync(command).ConfigureAwait(false);
     }

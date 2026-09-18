@@ -10,7 +10,34 @@ interface FieldErrors {
   confirmPassword?: string;
 }
 
-export function ResetPasswordPage() {
+/**
+ * 'reset' is BW-13's forgotten-password flow; 'invite' is the link a newly
+ * provisioned user gets (BW-14). Both consume the same token and the same
+ * endpoint, so only the wording differs.
+ */
+export type SetPasswordMode = 'reset' | 'invite';
+
+const COPY: Record<SetPasswordMode, { heading: string; deadHeading: string; deadBody: string; submit: string; done: string }> = {
+  reset: {
+    heading: 'Choose a new password',
+    deadHeading: 'This link is no longer valid',
+    deadBody:
+      'This reset link is missing or has already been used. Reset links can be used once and expire after a short while.',
+    submit: 'Change password',
+    done: 'Your password has been changed. Sign in with your new password.',
+  },
+  invite: {
+    heading: 'Set your password',
+    deadHeading: 'This invitation is no longer valid',
+    deadBody:
+      'This invitation link is missing or has already been used. Ask your Super Admin to send a new one.',
+    submit: 'Set password and continue',
+    done: 'Your password is set. Sign in to get started.',
+  },
+};
+
+export function ResetPasswordPage({ mode = 'reset' }: { mode?: SetPasswordMode }) {
+  const copy = COPY[mode];
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token') ?? '';
@@ -62,10 +89,7 @@ export function ResetPasswordPage() {
     setIsSubmitting(true);
     try {
       await resetPassword(token, newPassword, confirmPassword, controller.signal);
-      navigate('/login', {
-        replace: true,
-        state: { notice: 'Your password has been changed. Sign in with your new password.' },
-      });
+      navigate('/login', { replace: true, state: { notice: copy.done } });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
@@ -89,15 +113,16 @@ export function ResetPasswordPage() {
       <main className="auth-page">
         <section className="auth-card">
           <header className="auth-header">
-            <h1>This link is no longer valid</h1>
+            <h1>{copy.deadHeading}</h1>
           </header>
           <p className="auth-error" role="alert">
-            {formError ??
-              'This reset link is missing or has already been used. Reset links can be used once and expire after a short while.'}
+            {formError ?? copy.deadBody}
           </p>
-          <Link className="auth-submit auth-submit-link" to="/forgot-password">
-            Request a new link
-          </Link>
+          {mode === 'reset' && (
+            <Link className="auth-submit auth-submit-link" to="/forgot-password">
+              Request a new link
+            </Link>
+          )}
           <Link className="auth-link" to="/login">
             Back to sign in
           </Link>
@@ -113,7 +138,7 @@ export function ResetPasswordPage() {
     <main className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit} noValidate>
         <header className="auth-header">
-          <h1>Choose a new password</h1>
+          <h1>{copy.heading}</h1>
           <p>{PASSWORD_POLICY_DESCRIPTION}</p>
         </header>
 
@@ -173,7 +198,7 @@ export function ResetPasswordPage() {
         </div>
 
         <button className="auth-submit" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Change password'}
+          {isSubmitting ? 'Saving…' : copy.submit}
         </button>
 
         <Link className="auth-link" to="/login">

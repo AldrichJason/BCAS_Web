@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BCAS.Api.Common.Db;
+using BCAS.Api.Features.Accounts;
 using BCAS.Api.Features.ActivityLog;
 using BCAS.Api.Features.Auth;
 using BCAS.Api.Features.Email;
@@ -46,6 +48,8 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
 builder.Services.AddScoped<ITokenRevocationStore, TokenRevocationStore>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 
 // Without SMTP configured, reset emails go to the application log so the link
 // can still be followed during development.
@@ -82,22 +86,32 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
-            // BW-11: a token that has been logged out is rejected for the rest
-            // of its lifetime, so signing out ends the session server-side too.
+            // BW-11 and BW-15: a token that has been logged out, or whose account
+            // has since been deactivated, is rejected on the next request rather
+            // than staying good until it expires.
             OnTokenValidated = async context =>
             {
-                var jti = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
+                var principal = context.Principal;
+                var jti = principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
+                var rawUserId = principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
-                if (string.IsNullOrEmpty(jti))
+                if (string.IsNullOrEmpty(jti)
+                    || !int.TryParse(rawUserId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var userId))
                 {
-                    context.Fail("Token is missing its jti claim.");
+                    context.Fail("Token is missing the claims needed to validate it.");
                     return;
                 }
 
-                var revoked = context.HttpContext.RequestServices.GetRequiredService<ITokenRevocationStore>();
-                if (await revoked.IsRevokedAsync(jti, context.HttpContext.RequestAborted).ConfigureAwait(false))
+                var store = context.HttpContext.RequestServices.GetRequiredService<ITokenRevocationStore>();
+                var status = await store
+                    .GetStatusAsync(jti, userId, context.HttpContext.RequestAborted)
+                    .ConfigureAwait(false);
+
+                if (status != AccessTokenStatus.Accepted)
                 {
-                    context.Fail("Token has been revoked.");
+                    context.Fail(status == AccessTokenStatus.Revoked
+                        ? "Token has been revoked."
+                        : "The account behind this token is deactivated.");
                 }
             },
         };

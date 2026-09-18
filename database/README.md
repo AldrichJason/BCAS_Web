@@ -9,6 +9,7 @@ SQL Server schema for the BCAS web portal and CMS (BW-9).
 | `001_schema.sql` | Schemas, tables, foreign keys and indexes. Idempotent. |
 | `002_seed.sql` | Content statuses, roles, the four departments and the initial Super Admin. Idempotent. |
 | `003_sessions_and_password_resets.sql` | Revoked access tokens (logout) and password reset tokens, plus a purge procedure. Idempotent. |
+| `004_account_provisioning.sql` | Token `Purpose` (reset vs invitation) and the `auth.vw_UserAccounts` view. Idempotent. |
 
 Both scripts are repeatable from an empty database and safe to re-run, so a
 teammate can reset their local database at any time.
@@ -20,6 +21,7 @@ sqlcmd -S localhost -U sa -P "<password>" -Q "IF DB_ID('BcasWeb') IS NULL CREATE
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/001_schema.sql
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/002_seed.sql
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/003_sessions_and_password_resets.sql
+sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/004_account_provisioning.sql
 ```
 
 ## Layout
@@ -63,7 +65,18 @@ before the token would expire on its own.
 `auth.PasswordResetTokens` stores only the **SHA-256 hash** of each reset token,
 so a leaked table cannot be used to reset anyone's password. `ConsumedAt` makes a
 token single-use and `InvalidatedAt` retires tokens that a newer request or a
-successful reset has superseded.
+successful reset has superseded. `Purpose` separates a password reset from the
+invitation issued when the Super Admin provisions an account; both are consumed
+the same way, they just differ in lifetime and in what the email says.
 
 Both tables accumulate rows that stop mattering once the underlying token
 expires. `ops.PurgeExpiredAuthTokens` clears them; run it on a schedule.
+
+## Deactivation
+
+Accounts are never hard-deleted. `auth.Users.IsActive` is the only thing that
+changes, so content authored by a deactivated user stays published with its
+original author (the `CreatedBy` foreign keys are untouched, and no cascade
+delete exists anywhere in the schema), and their `ops.ActivityLog` rows are
+retained. Reactivating flips the same flag back and clears any leftover lockout,
+so no re-provisioning is needed.

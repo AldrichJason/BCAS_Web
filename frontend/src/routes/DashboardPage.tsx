@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { AdminLayout } from '@/components/AdminLayout';
 import { useAuth } from '@/features/auth/useAuth';
 import './DashboardPage.css';
@@ -28,6 +29,16 @@ export function DashboardPage({ title }: { title: string }) {
         <h2>Your scope</h2>
         <p>{scope}</p>
       </section>
+
+      {user.roleCode === 'SUPER_ADMIN' && (
+        <section className="dashboard-panel">
+          <h2>Administration</h2>
+          <p>Create accounts, assign roles and department scope, and activate or deactivate staff.</p>
+          <Link className="dashboard-link" to="/admin/accounts">
+            Manage accounts
+          </Link>
+        </section>
+      )}
     </AdminLayout>
   );
 }
