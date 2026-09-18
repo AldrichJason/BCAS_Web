@@ -1,0 +1,37 @@
+# --- .NET --------------------------------------------------------------------
+bin/
+obj/
+*.user
+*.suo
+.vs/
+# Local secrets and machine-specific overrides. The connection string and the
+# JWT signing key live in user secrets or environment variables, never in git.
+appsettings.*.local.json
+appsettings.Local.json
+*.pfx
+
+# --- Node / frontend ---------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+.env
+.env.*
+!.env.example
+npm-debug.log*
+yarn-error.log*
+
+# --- Editors / OS ------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# --- Logs --------------------------------------------------------------------
+logs/
+*.log
+
+# TypeScript incremental build cache
+*.tsbuildinfo

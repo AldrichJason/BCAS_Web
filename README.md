@@ -1,2 +1,120 @@
 # BCAS_Web
+
 Development of a Dynamic Web-Information Portal and Integrated CMS for Batangas College of Arts and Sciences (BCAS). Includes a public website, content management system, and chatbot feature. Built with ASP.NET Core Web API (C#), Dapper, SQL Server, React + TypeScript, and JWT auth. BSIT capstone project.
+
+## Repository structure
+
+```
+BCAS_Web/
+├── BCAS_Web.sln              Solution entry point
+├── .editorconfig             Shared code style (C#, TypeScript, SQL)
+├── backend/
+│   ├── Directory.Build.props Shared MSBuild settings for every backend project
+│   └── BCAS.Api/             ASP.NET Core Web API
+│       ├── Common/           Cross-cutting: DB connection factory, error shapes
+│       ├── Features/         One folder per feature (Auth, ActivityLog, …)
+│       ├── Options/          Strongly-typed configuration sections
+│       └── Program.cs        Composition root and HTTP pipeline
+├── database/                 SQL Server schema and seed scripts (see its README)
+└── frontend/                 React + TypeScript (Vite)
+    └── src/
+        ├── api/              HTTP client and API types
+        ├── app/              Application shell and routing
+        ├── features/         One folder per feature (auth, …)
+        ├── routes/           Route-level pages and guards
+        └── styles/           Global styles and design tokens
+```
+
+Backend code is organised by **feature**, not by layer: everything for a feature
+(controller, service, repository, DTOs) sits in one folder under `Features/`.
+
+## Prerequisites
+
+- [.NET SDK 8.0](https://dotnet.microsoft.com/download)
+- [Node.js 20+](https://nodejs.org/) and npm
+- SQL Server 2019+ (Developer Edition or the Docker image) and `sqlcmd`
+
+## Getting started
+
+### 1. Database
+
+```bash
+sqlcmd -S localhost -U sa -P "<password>" -Q "IF DB_ID('BcasWeb') IS NULL CREATE DATABASE BcasWeb;"
+sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/001_schema.sql
+sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/002_seed.sql
+```
+
+See [`database/README.md`](database/README.md) for the schema layout and the
+seeded Super Admin credentials.
+
+### 2. Backend
+
+The connection string and the JWT signing key are **never committed**. Set them
+through user secrets for local development:
+
+```bash
+cd backend/BCAS.Api
+dotnet user-secrets set "ConnectionStrings:BcasDb" \
+  "Server=localhost;Database=BcasWeb;User Id=sa;Password=<password>;TrustServerCertificate=True"
+dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 48)"
+dotnet run
+```
+
+The API starts on `https://localhost:7148` with Swagger UI at `/swagger` and a
+health check at `/health`. In other environments the same two settings are read
+from environment variables (`ConnectionStrings__BcasDb`, `Jwt__SigningKey`).
+
+### 3. Frontend
+
+```bash
+cd frontend
+cp .env.example .env.local   # adjust VITE_API_BASE_URL if the API is elsewhere
+npm install
+npm run dev
+```
+
+The dev server runs on `http://localhost:5173`, which is the origin allowed by
+the API's CORS policy (`Cors:AllowedOrigins` in `appsettings.json`).
+
+## Everyday commands
+
+| Task | Backend | Frontend |
+| --- | --- | --- |
+| Build | `dotnet build` | `npm run build` |
+| Run | `dotnet run --project backend/BCAS.Api` | `npm run dev` |
+| Type check | — | `npm run typecheck` |
+| Lint | style rules run as part of `dotnet build` | `npm run lint` |
+| Format | `dotnet format` | `npm run format` |
+
+Code style is shared through `.editorconfig` (C#, SQL and TypeScript indentation
+and naming) plus ESLint and Prettier on the frontend. C# style violations are
+reported as build warnings, so they surface without blocking a local build.
+
+## Branching convention
+
+- `main` — protected; always builds and runs.
+- `feature/BW-<ticket>-<short-slug>` — one branch per Jira ticket, e.g.
+  `feature/BW-10-jwt-login`.
+- `fix/BW-<ticket>-<short-slug>` — bug fixes against an existing feature.
+
+Branch off `main`, keep the Jira key in the branch name and in every commit
+subject (`BW-10: add login endpoint`), and open a pull request back into `main`.
+A branch is merged only after the build passes and one teammate has reviewed it.
+
+## Authentication
+
+`POST /api/auth/login` takes an email and password and returns a signed JWT plus
+the user's basic profile. Token claims carry the user id (`sub`), the role code
+(`role`) and one `dept` claim per department the user is scoped to.
+
+| Role code | Role | Landing route |
+| --- | --- | --- |
+| `SUPER_ADMIN` | Super Admin | `/admin` |
+| `ACADEMIC_HEAD` | Academic Head | `/department` |
+| `REGISTRAR` | Admin Office/Registrar | `/registrar` |
+| `VP_OPERATIONS` | VP of Operations | `/operations` |
+
+Unknown emails, wrong passwords and deactivated accounts all return the same
+`401` with a generic message, so the endpoint cannot be used to discover which
+accounts exist. Repeated failures lock an account for a configurable window
+(`Login:MaxFailedAttempts`, `Login:LockoutMinutes`).
