@@ -1,0 +1,76 @@
+# Brings up SQL Server, the ASP.NET Core API and the React portal.
+#   docker compose up --build
+#   portal : http://localhost:3000
+#   api    : http://localhost:8080/swagger
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bcas-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Your_password123}
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # Creates the schema and the seed rows once the server accepts connections.
+  db-migrate:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bcas-db-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Your_password123}
+    volumes:
+      - ./database:/scripts:ro
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -i /scripts/01_schema.sql
+        /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -i /scripts/02_seed.sql
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+    container_name: bcas-api
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: >-
+        Server=db,1433;Database=BCAS_Web;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Your_password123};TrustServerCertificate=True;Encrypt=True;
+      Jwt__Key: ${JWT_KEY:-bcas-compose-development-signing-key-change-me}
+      Jwt__Issuer: bcas-web-api
+      Jwt__Audience: bcas-web-client
+      Cors__AllowedOrigins__0: http://localhost:3000
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+    container_name: bcas-web
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  mssql-data:

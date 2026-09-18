@@ -1,0 +1,28 @@
+# --- .NET ---------------------------------------------------------------
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+
+# --- Node / Vite --------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# --- Environment & secrets ---------------------------------------------
+.env
+.env.*
+!.env.example
+appsettings.Production.json
+appsettings.*.local.json
+
+# --- Editors / OS -------------------------------------------------------
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
