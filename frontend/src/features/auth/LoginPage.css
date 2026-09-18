@@ -1,0 +1,96 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bcas-surface-muted);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+  border-radius: 12px;
+  background: var(--bcas-surface);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 8%);
+}
+
+.login-header h1 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+}
+
+.login-header p {
+  margin: 0;
+  color: var(--bcas-text-muted);
+  font-size: 0.9rem;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.login-field input {
+  padding: 10px 12px;
+  border: 1px solid var(--bcas-border);
+  border-radius: 8px;
+  font-size: 1rem;
+  font: inherit;
+}
+
+.login-field input:focus-visible {
+  outline: 2px solid var(--bcas-accent);
+  outline-offset: 1px;
+}
+
+.login-field input[aria-invalid='true'] {
+  border-color: var(--bcas-danger);
+}
+
+.login-field input:disabled {
+  background: var(--bcas-surface-muted);
+}
+
+.field-error,
+.login-error {
+  color: var(--bcas-danger);
+  font-size: 0.8125rem;
+}
+
+.login-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bcas-danger-surface);
+}
+
+.login-submit {
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--bcas-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-submit:hover:not(:disabled) {
+  background: var(--bcas-accent-strong);
+}
+
+.login-submit:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
