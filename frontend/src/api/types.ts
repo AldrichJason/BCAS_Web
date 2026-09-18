@@ -42,3 +42,40 @@ export interface SessionResponse {
 export interface ApiMessageBody {
   message: string;
 }
+
+/** Mirrors the API's UserAccount (BW-14, BW-15). */
+export interface UserAccount {
+  userId: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  roleCode: RoleCode;
+  roleName: string;
+  primaryDepartmentId: number | null;
+  primaryDepartmentCode: string | null;
+  primaryDepartmentName: string | null;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export interface RoleOption {
+  code: RoleCode;
+  name: string;
+  description: string | null;
+  /** True when a department must be chosen alongside this role. */
+  requiresDepartment: boolean;
+}
+
+export interface DepartmentOption {
+  departmentId: number;
+  code: string;
+  name: string;
+}
+
+/** Mirrors the API's AccountReference. */
+export interface AccountReference {
+  roles: RoleOption[];
+  departments: DepartmentOption[];
+}

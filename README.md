@@ -43,6 +43,7 @@ sqlcmd -S localhost -U sa -P "<password>" -Q "IF DB_ID('BcasWeb') IS NULL CREATE
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/001_schema.sql
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/002_seed.sql
 sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/003_sessions_and_password_resets.sql
+sqlcmd -S localhost -U sa -P "<password>" -d BcasWeb -i database/004_account_provisioning.sql
 ```
 
 See [`database/README.md`](database/README.md) for the schema layout and the
@@ -111,6 +112,10 @@ A branch is merged only after the build passes and one teammate has reviewed it.
 | `POST /api/auth/logout` | bearer | Revokes the caller's token. Idempotent. |
 | `POST /api/auth/forgot-password` | anonymous | Emails a reset link when the account exists. |
 | `POST /api/auth/reset-password` | anonymous | Completes a reset using the token from the link. |
+| `GET /api/admin/accounts` | Super Admin | Lists all accounts, deactivated ones included. |
+| `GET /api/admin/accounts/reference` | Super Admin | Role and department options for the create form. |
+| `POST /api/admin/accounts` | Super Admin | Provisions an account and emails its invitation. |
+| `PUT /api/admin/accounts/{id}/activation` | Super Admin | Activates or deactivates an account. |
 
 Token claims carry the user id (`sub`), the role code (`role`) and one `dept`
 claim per department the user is scoped to.
@@ -152,3 +157,25 @@ user secrets or the deployment secret store, not `appsettings.json`.
 Password policy is defined once in `Features/Auth/PasswordPolicy.cs` and mirrored
 in `frontend/src/features/auth/passwordPolicy.ts` for inline feedback; the
 server's copy is the one that decides.
+
+## Account administration
+
+Everything under `/api/admin/accounts` is Super Admin only; any other signed-in
+role gets HTTP 403.
+
+**Provisioning.** The Super Admin supplies a name, email, role and — for an
+Academic Head only — a department. A department sent for any other role is
+rejected, as is one missing for an Academic Head. A duplicate email returns
+`409` with a message naming the address. No password is set at creation: the
+account is stored with an unusable hash and emailed a link to
+`/set-password`, valid for seven days and usable once.
+
+**Activation.** Deactivating sets `auth.Users.IsActive` to false and nothing
+else. Nothing is deleted, so authored content stays published with its original
+author and the activity log is retained; reactivating restores access and clears
+any leftover lockout, with no re-provisioning. The API refuses to let a Super
+Admin deactivate their own account or the last active Super Admin.
+
+A deactivated user cannot sign in, and an access token they already hold is
+rejected on their next request — the bearer handler checks revocation and
+account status together, in one query, on every authenticated call.

@@ -1,5 +1,18 @@
 namespace BCAS.Api.Features.Auth;
 
+/// <summary>
+/// Why a password token was issued. Both kinds are consumed the same way; they
+/// differ in how long they live and what the email says.
+/// </summary>
+public enum PasswordTokenPurpose
+{
+    /// <summary>The user asked to reset a password they already had (BW-13).</summary>
+    Reset,
+
+    /// <summary>The Super Admin provisioned the account and it has no password yet (BW-14).</summary>
+    Invite,
+}
+
 /// <summary>A reset token row, looked up by the hash of the raw token.</summary>
 public sealed class PasswordResetTokenRecord
 {
@@ -24,7 +37,12 @@ public interface IPasswordResetTokenRepository
     /// so only the most recent reset link works.
     /// </summary>
     Task CreateAsync(
-        int userId, string tokenHash, DateTime expiresAtUtc, string? requestedIp, CancellationToken cancellationToken = default);
+        int userId,
+        string tokenHash,
+        DateTime expiresAtUtc,
+        string? requestedIp,
+        PasswordTokenPurpose purpose,
+        CancellationToken cancellationToken = default);
 
     Task<PasswordResetTokenRecord?> FindByHashAsync(string tokenHash, CancellationToken cancellationToken = default);
 

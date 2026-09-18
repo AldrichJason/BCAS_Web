@@ -163,7 +163,8 @@ public sealed class AuthService : IAuthService
         var expiresAt = DateTime.UtcNow.AddMinutes(_resetOptions.TokenLifetimeMinutes);
 
         await _resetTokens.CreateAsync(
-            user.UserId, HashResetToken(rawToken), expiresAt, CallerIp(), cancellationToken).ConfigureAwait(false);
+            user.UserId, HashResetToken(rawToken), expiresAt, CallerIp(), PasswordTokenPurpose.Reset, cancellationToken)
+            .ConfigureAwait(false);
 
         var link = $"{_appOptions.WebBaseUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(rawToken)}";
         var hours = _resetOptions.TokenLifetimeMinutes / 60d;

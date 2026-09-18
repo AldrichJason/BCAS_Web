@@ -22,3 +22,15 @@
   margin: 0;
   color: var(--bcas-text-muted);
 }
+
+.dashboard-panel + .dashboard-panel {
+  margin-top: 16px;
+}
+
+.dashboard-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--bcas-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+}

@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AccountsPage } from '@/features/accounts/AccountsPage';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
 import { LoginPage } from '@/features/auth/LoginPage';
@@ -14,12 +15,22 @@ export function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* Where an invitation link lands (BW-14): same flow, different wording. */}
+          <Route path="/set-password" element={<ResetPasswordPage mode="invite" />} />
 
           <Route
             path="/admin"
             element={
               <ProtectedRoute allow={['SUPER_ADMIN']}>
                 <DashboardPage title="Administration" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/accounts"
+            element={
+              <ProtectedRoute allow={['SUPER_ADMIN']}>
+                <AccountsPage />
               </ProtectedRoute>
             }
           />
