@@ -9,6 +9,8 @@
   --bcas-danger: #b91c1c;
   --bcas-danger-surface: #fef2f2;
   --bcas-warning-surface: #fef3c7;
+  --bcas-success: #166534;
+  --bcas-success-surface: #f0fdf4;
 
   color-scheme: light;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;

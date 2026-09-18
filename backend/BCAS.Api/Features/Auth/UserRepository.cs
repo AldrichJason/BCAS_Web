@@ -36,6 +36,51 @@ public sealed class UserRepository : IUserRepository
         return await connection.QuerySingleOrDefaultAsync<UserCredentialRecord>(command).ConfigureAwait(false);
     }
 
+    public async Task<UserCredentialRecord?> FindByIdAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT  u.UserId,
+                    u.Email,
+                    u.PasswordHash,
+                    u.FirstName,
+                    u.LastName,
+                    r.Code               AS RoleCode,
+                    r.Name               AS RoleName,
+                    u.PrimaryDepartmentId,
+                    d.Code               AS PrimaryDepartmentCode,
+                    u.IsActive,
+                    u.MustChangePassword,
+                    u.FailedLoginCount,
+                    u.LockedOutUntil
+            FROM    auth.Users u
+                    INNER JOIN auth.Roles r ON r.RoleId = u.RoleId
+                    LEFT  JOIN auth.Departments d ON d.DepartmentId = u.PrimaryDepartmentId
+            WHERE   u.UserId = @UserId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var command = new CommandDefinition(sql, new { UserId = userId }, cancellationToken: cancellationToken);
+        return await connection.QuerySingleOrDefaultAsync<UserCredentialRecord>(command).ConfigureAwait(false);
+    }
+
+    public async Task UpdatePasswordAsync(int userId, string passwordHash, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE  auth.Users
+            SET     PasswordHash       = @PasswordHash,
+                    MustChangePassword = 0,
+                    FailedLoginCount   = 0,
+                    LockedOutUntil     = NULL,
+                    UpdatedAt          = SYSUTCDATETIME()
+            WHERE   UserId = @UserId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var command = new CommandDefinition(
+            sql, new { UserId = userId, PasswordHash = passwordHash }, cancellationToken: cancellationToken);
+        await connection.ExecuteAsync(command).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<DepartmentScope>> GetDepartmentScopeAsync(int userId, CancellationToken cancellationToken = default)
     {
         // The primary department is unioned in so the scope is right even if
