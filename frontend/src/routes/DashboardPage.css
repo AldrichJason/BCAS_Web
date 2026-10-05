@@ -1,21 +1,25 @@
 .dashboard-notice {
   margin: 0 0 24px;
   padding: 12px 14px;
-  border-radius: 8px;
+  border: 1px solid #f5d98b;
+  border-radius: 12px;
   background: var(--bcas-warning-surface);
   font-size: 0.9rem;
 }
 
 .dashboard-panel {
-  padding: 20px;
+  padding: 24px;
   border: 1px solid var(--bcas-border);
-  border-radius: 12px;
+  border-left: 4px solid var(--bcas-accent);
+  border-radius: var(--bcas-radius);
   background: var(--bcas-surface);
+  box-shadow: var(--bcas-shadow);
 }
 
 .dashboard-panel h2 {
   margin: 0 0 8px;
-  font-size: 1rem;
+  color: var(--bcas-brand);
+  font-size: 1.0625rem;
 }
 
 .dashboard-panel p {
@@ -29,8 +33,16 @@
 
 .dashboard-link {
   display: inline-block;
-  margin-top: 12px;
-  color: var(--bcas-accent);
+  margin-top: 14px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--bcas-brand-soft);
+  color: var(--bcas-accent-strong);
   font-size: 0.9rem;
   font-weight: 600;
+  text-decoration: none;
+}
+
+.dashboard-link:hover {
+  background: #d5e0fb;
 }

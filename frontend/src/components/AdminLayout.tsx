@@ -32,20 +32,28 @@ export function AdminLayout({ title, children }: { title: string; children?: Rea
   return (
     <div className="admin-shell">
       <header className="admin-bar">
-        <div className="admin-identity">
-          <span className="admin-name">
-            {user.firstName} {user.lastName}
+        <div className="admin-brand">
+          <span className="admin-brand-mark" aria-hidden="true">
+            B
           </span>
-          <span className="admin-role">{user.roleName}</span>
+          BCAS Portal
         </div>
-        <button
-          type="button"
-          className="admin-signout"
-          onClick={() => void handleSignOut()}
-          disabled={isSigningOut}
-        >
-          {isSigningOut ? 'Signing out…' : 'Sign out'}
-        </button>
+        <div className="admin-user">
+          <div className="admin-identity">
+            <span className="admin-name">
+              {user.firstName} {user.lastName}
+            </span>
+            <span className="admin-role">{user.roleName}</span>
+          </div>
+          <button
+            type="button"
+            className="admin-signout"
+            onClick={() => void handleSignOut()}
+            disabled={isSigningOut}
+          >
+            {isSigningOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
       </header>
 
       <main className="admin-main">
